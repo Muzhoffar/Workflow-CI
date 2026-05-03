@@ -80,7 +80,7 @@ jobs:
           git diff --staged --quiet || git commit -m "ci: update mlruns artifacts [skip ci]"
           git push
 
-      # ----------------------------------------------------------
+# ----------------------------------------------------------
       # Step 6: Build Docker image dari model MLflow
       # ----------------------------------------------------------
       - name: Build Docker image
@@ -88,10 +88,7 @@ jobs:
         run: |
           RUN_ID=$(cat MLProject/run_id.txt)
           echo "Building Docker image dari Run ID: $RUN_ID"
-          mlflow models build-docker \
-            --model-uri "runs:/$RUN_ID/model" \
-            --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" \
-            --enable-mlserver
+          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" --env-manager local
 
       # ----------------------------------------------------------
       # Step 7: Login ke Docker Hub
