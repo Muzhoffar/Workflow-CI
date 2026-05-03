@@ -1,0 +1,15 @@
+artifact_uri: file:///home/runner/work/Workflow-CI/Workflow-CI/mlruns/0/4ca17a1e400a4bd6b89dc7d62bc91b05/artifacts
+end_time: 1777830005338
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 4ca17a1e400a4bd6b89dc7d62bc91b05
+run_name: carefree-roo-416
+run_uuid: 4ca17a1e400a4bd6b89dc7d62bc91b05
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1777829997655
+status: 3
+tags: []
+user_id: runner
