@@ -1,0 +1,117 @@
+# =============================================================================
+# Workflow: CI Pipeline - Dry Bean Classifier
+# Repository: Workflow-CI
+# Author: Rifqi (Muzhoffar)
+#
+# Deskripsi:
+#   1. Menjalankan training model via MLflow Project
+#   2. Menyimpan artefak kembali ke repository GitHub
+#   3. Build Docker image via mlflow models build-docker
+#   4. Push Docker image ke Docker Hub
+#
+# Trigger:
+#   - Push ke branch main
+#   - Manual (workflow_dispatch)
+#
+# Secrets yang dibutuhkan (set di GitHub repo Settings > Secrets):
+#   - DOCKERHUB_USERNAME : username Docker Hub
+#   - DOCKERHUB_TOKEN    : access token Docker Hub
+# =============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  training_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ----------------------------------------------------------
+      # Step 1: Ambil isi repository
+      # ----------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------
+      # Step 2: Setup Miniconda
+      # ----------------------------------------------------------
+      - name: Setup Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: "3.10.13"
+          activate-environment: mlproject_env
+          auto-activate-base: false
+
+      # ----------------------------------------------------------
+      # Step 3: Install MLflow dan dependencies
+      # ----------------------------------------------------------
+      - name: Install dependencies
+        shell: bash -el {0}
+        run: |
+          pip install --upgrade pip
+          pip install mlflow==2.20.2 pandas numpy scikit-learn matplotlib seaborn
+
+      # ----------------------------------------------------------
+      # Step 4: Jalankan MLflow Project (training)
+      # ----------------------------------------------------------
+      - name: Run MLflow Project
+        shell: bash -el {0}
+        run: |
+          mlflow run MLProject/ \
+            --env-manager=local \
+            -P n_estimators=100 \
+            -P max_depth=None \
+            -P min_samples_split=2
+
+      # ----------------------------------------------------------
+      # Step 5: Simpan artefak (mlruns) ke GitHub
+      # ----------------------------------------------------------
+      - name: Commit artifacts to repository
+        shell: bash -el {0}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add mlruns/
+          git add MLProject/run_id.txt
+          git diff --staged --quiet || git commit -m "ci: update mlruns artifacts [skip ci]"
+          git push
+
+      # ----------------------------------------------------------
+      # Step 6: Build Docker image dari model MLflow
+      # ----------------------------------------------------------
+      - name: Build Docker image
+        shell: bash -el {0}
+        run: |
+          RUN_ID=$(cat MLProject/run_id.txt)
+          echo "Building Docker image dari Run ID: $RUN_ID"
+          mlflow models build-docker \
+            --model-uri "runs:/$RUN_ID/model" \
+            --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" \
+            --enable-mlserver
+
+      # ----------------------------------------------------------
+      # Step 7: Login ke Docker Hub
+      # ----------------------------------------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ----------------------------------------------------------
+      # Step 8: Push Docker image ke Docker Hub
+      # ----------------------------------------------------------
+      - name: Push Docker image to Docker Hub
+        shell: bash -el {0}
+        run: |
+          docker push "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest"
+          echo "Docker image berhasil dipush ke Docker Hub."
+          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest"
