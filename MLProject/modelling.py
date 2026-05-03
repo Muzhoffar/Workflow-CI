@@ -177,87 +177,82 @@ def train(args):
     X_train, X_test, y_train, y_test = load_data()
 
     # ------------------------------------------------------------------
-    # Deteksi apakah run sudah aktif (dijalankan via mlflow run)
-    # Jika sudah aktif: gunakan run yang ada
-    # Jika belum aktif: buat run baru (dijalankan manual)
+    # Deteksi apakah dijalankan via "mlflow run" atau manual
+    # Jika via "mlflow run": MLFLOW_RUN_ID sudah ada di environment,
+    #   jangan panggil set_experiment() atau start_run() lagi
+    # Jika manual: buat experiment dan run baru
     # ------------------------------------------------------------------
-    active_run = mlflow.active_run()
+    run_from_mlflow_cli = os.environ.get("MLFLOW_RUN_ID") is not None
 
-    if active_run is None:
+    if not run_from_mlflow_cli:
         mlflow.set_experiment("dry_bean_ci")
         mlflow.start_run(run_name="RandomForest_CI")
-        run_started_here = True
-    else:
-        run_started_here = False
 
-    try:
-        # --- Training ---
-        model = RandomForestClassifier(
-            n_estimators=args.n_estimators,
-            max_depth=max_depth,
-            min_samples_split=args.min_samples_split,
-            random_state=args.random_state,
-            n_jobs=-1
-        )
-        model.fit(X_train, y_train)
+    # --- Training ---
+    model = RandomForestClassifier(
+        n_estimators=args.n_estimators,
+        max_depth=max_depth,
+        min_samples_split=args.min_samples_split,
+        random_state=args.random_state,
+        n_jobs=-1
+    )
+    model.fit(X_train, y_train)
 
-        # --- Evaluasi ---
-        y_pred          = model.predict(X_test)
-        accuracy        = accuracy_score(y_test, y_pred)
-        f1_macro        = f1_score(y_test, y_pred, average="macro")
-        f1_weighted     = f1_score(y_test, y_pred, average="weighted")
-        precision_macro = precision_score(y_test, y_pred, average="macro")
-        recall_macro    = recall_score(y_test, y_pred, average="macro")
+    # --- Evaluasi ---
+    y_pred          = model.predict(X_test)
+    accuracy        = accuracy_score(y_test, y_pred)
+    f1_macro        = f1_score(y_test, y_pred, average="macro")
+    f1_weighted     = f1_score(y_test, y_pred, average="weighted")
+    precision_macro = precision_score(y_test, y_pred, average="macro")
+    recall_macro    = recall_score(y_test, y_pred, average="macro")
 
-        print(f"\nHasil Evaluasi:")
-        print(f"  Accuracy         : {accuracy:.4f}")
-        print(f"  F1 Macro         : {f1_macro:.4f}")
-        print(f"  F1 Weighted      : {f1_weighted:.4f}")
-        print(f"  Precision Macro  : {precision_macro:.4f}")
-        print(f"  Recall Macro     : {recall_macro:.4f}")
+    print(f"\nHasil Evaluasi:")
+    print(f"  Accuracy         : {accuracy:.4f}")
+    print(f"  F1 Macro         : {f1_macro:.4f}")
+    print(f"  F1 Weighted      : {f1_weighted:.4f}")
+    print(f"  Precision Macro  : {precision_macro:.4f}")
+    print(f"  Recall Macro     : {recall_macro:.4f}")
 
-        # --- Manual Logging: Parameter ---
-        mlflow.log_param("n_estimators",      args.n_estimators)
-        mlflow.log_param("max_depth",         str(max_depth))
-        mlflow.log_param("min_samples_split", args.min_samples_split)
-        mlflow.log_param("random_state",      args.random_state)
+    # --- Manual Logging: Parameter ---
+    mlflow.log_param("n_estimators",      args.n_estimators)
+    mlflow.log_param("max_depth",         str(max_depth))
+    mlflow.log_param("min_samples_split", args.min_samples_split)
+    mlflow.log_param("random_state",      args.random_state)
 
-        # --- Manual Logging: Metrik ---
-        mlflow.log_metric("accuracy",        accuracy)
-        mlflow.log_metric("f1_macro",        f1_macro)
-        mlflow.log_metric("f1_weighted",     f1_weighted)
-        mlflow.log_metric("precision_macro", precision_macro)
-        mlflow.log_metric("recall_macro",    recall_macro)
+    # --- Manual Logging: Metrik ---
+    mlflow.log_metric("accuracy",        accuracy)
+    mlflow.log_metric("f1_macro",        f1_macro)
+    mlflow.log_metric("f1_weighted",     f1_weighted)
+    mlflow.log_metric("precision_macro", precision_macro)
+    mlflow.log_metric("recall_macro",    recall_macro)
 
-        # --- Manual Logging: Model ---
-        mlflow.sklearn.log_model(
-            sk_model=model,
-            artifact_path="model",
-            registered_model_name="DryBean_CI"
-        )
+    # --- Manual Logging: Model ---
+    mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="model",
+        registered_model_name="DryBean_CI"
+    )
 
-        # --- Manual Logging: Artefak Tambahan ---
-        os.makedirs(ARTIFACT_DIR, exist_ok=True)
+    # --- Manual Logging: Artefak Tambahan ---
+    os.makedirs(ARTIFACT_DIR, exist_ok=True)
 
-        cm_path     = save_confusion_matrix(y_test, y_pred, ARTIFACT_DIR)
-        report_path = save_classification_report(y_test, y_pred, ARTIFACT_DIR)
-        fi_path     = save_feature_importance(model, X_train.columns.tolist(), ARTIFACT_DIR)
+    cm_path     = save_confusion_matrix(y_test, y_pred, ARTIFACT_DIR)
+    report_path = save_classification_report(y_test, y_pred, ARTIFACT_DIR)
+    fi_path     = save_feature_importance(model, X_train.columns.tolist(), ARTIFACT_DIR)
 
-        mlflow.log_artifact(cm_path,     artifact_path="plots")
-        mlflow.log_artifact(report_path, artifact_path="reports")
-        mlflow.log_artifact(fi_path,     artifact_path="plots")
+    mlflow.log_artifact(cm_path,     artifact_path="plots")
+    mlflow.log_artifact(report_path, artifact_path="reports")
+    mlflow.log_artifact(fi_path,     artifact_path="plots")
 
-        # Simpan run ID ke file
-        run_id = mlflow.active_run().info.run_id
-        with open(os.path.join(BASE_DIR, "run_id.txt"), "w") as f:
-            f.write(run_id)
+    # Simpan run ID ke file agar bisa digunakan oleh workflow
+    run_id = mlflow.active_run().info.run_id
+    with open(os.path.join(BASE_DIR, "run_id.txt"), "w") as f:
+        f.write(run_id)
 
-        print(f"\nRun ID  : {run_id}")
-        print(f"Run ID disimpan ke: {os.path.join(BASE_DIR, 'run_id.txt')}")
+    print(f"\nRun ID  : {run_id}")
 
-    finally:
-        if run_started_here:
-            mlflow.end_run()
+    if not run_from_mlflow_cli:
+        mlflow.end_run()
 
 
 # =============================================================================
