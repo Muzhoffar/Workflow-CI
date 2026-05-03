@@ -176,10 +176,21 @@ def train(args):
     # Load data
     X_train, X_test, y_train, y_test = load_data()
 
-    mlflow.set_experiment("dry_bean_ci")
+    # ------------------------------------------------------------------
+    # Deteksi apakah run sudah aktif (dijalankan via mlflow run)
+    # Jika sudah aktif: gunakan run yang ada
+    # Jika belum aktif: buat run baru (dijalankan manual)
+    # ------------------------------------------------------------------
+    active_run = mlflow.active_run()
 
-    with mlflow.start_run(run_name="RandomForest_CI"):
+    if active_run is None:
+        mlflow.set_experiment("dry_bean_ci")
+        mlflow.start_run(run_name="RandomForest_CI")
+        run_started_here = True
+    else:
+        run_started_here = False
 
+    try:
         # --- Training ---
         model = RandomForestClassifier(
             n_estimators=args.n_estimators,
@@ -236,13 +247,17 @@ def train(args):
         mlflow.log_artifact(report_path, artifact_path="reports")
         mlflow.log_artifact(fi_path,     artifact_path="plots")
 
-        # Simpan run ID ke file agar bisa digunakan oleh workflow
+        # Simpan run ID ke file
         run_id = mlflow.active_run().info.run_id
         with open(os.path.join(BASE_DIR, "run_id.txt"), "w") as f:
             f.write(run_id)
 
         print(f"\nRun ID  : {run_id}")
         print(f"Run ID disimpan ke: {os.path.join(BASE_DIR, 'run_id.txt')}")
+
+    finally:
+        if run_started_here:
+            mlflow.end_run()
 
 
 # =============================================================================

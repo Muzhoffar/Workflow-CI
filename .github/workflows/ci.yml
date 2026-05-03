@@ -59,17 +59,13 @@ jobs:
           pip install --upgrade pip
           pip install mlflow==2.20.2 pandas numpy scikit-learn matplotlib seaborn
 
-      # ----------------------------------------------------------
+# ----------------------------------------------------------
       # Step 4: Jalankan MLflow Project (training)
       # ----------------------------------------------------------
       - name: Run MLflow Project
         shell: bash -el {0}
         run: |
-          mlflow run MLProject/ \
-            --env-manager=local \
-            -P n_estimators=100 \
-            -P max_depth=None \
-            -P min_samples_split=2
+          mlflow run MLProject/ --env-manager=local -P n_estimators=100 -P max_depth=None -P min_samples_split=2 -P test_size=0.2 -P random_state=42
 
       # ----------------------------------------------------------
       # Step 5: Simpan artefak (mlruns) ke GitHub
