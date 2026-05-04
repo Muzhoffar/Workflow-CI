@@ -3,19 +3,24 @@
 # Repository: Workflow-CI
 # Author: Rifqi (Muzhoffar)
 #
-# Deskripsi:
-#   1. Menjalankan training model via MLflow Project
-#   2. Menyimpan artefak kembali ke repository GitHub
-#   3. Build Docker image via mlflow models build-docker
-#   4. Push Docker image ke Docker Hub
-#
-# Trigger:
-#   - Push ke branch main
-#   - Manual (workflow_dispatch)
-#
-# Secrets yang dibutuhkan (set di GitHub repo Settings > Secrets):
-#   - DOCKERHUB_USERNAME : username Docker Hub
-#   - DOCKERHUB_TOKEN    : access token Docker Hub
+# Tahapan sesuai referensi Dicoding (Advanced):
+#   1.  Set up job                     (otomatis)
+#   2.  Run actions/checkout@v3        (otomatis dari nama action)
+#   3.  Set up Python 3.12.7           (otomatis dari setup-python)
+#   4.  Check Env
+#   5.  Install dependencies
+#   6.  Run mlflow project
+#   7.  Get latest MLflow run_id
+#   8.  Install Python dependencies
+#   9.  Upload to GitHub
+#   10. Build Docker Model
+#   11. Log in to Docker Hub           (otomatis dari nama action)
+#   12. Tag Docker Image
+#   13. Push Docker Image
+#   14. Post Log in to Docker Hub      (otomatis)
+#   15. Post Set up Python 3.12.7      (otomatis)
+#   16. Post Run actions/checkout@v3   (otomatis)
+#   17. Complete job                   (otomatis)
 # =============================================================================
 
 name: CI Pipeline
@@ -35,43 +40,67 @@ jobs:
 
     steps:
       # ----------------------------------------------------------
-      # Step 1: Ambil isi repository
+      # Step 2: Checkout repository
+      # Nama otomatis tampil sebagai "Run actions/checkout@v3"
       # ----------------------------------------------------------
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       # ----------------------------------------------------------
-      # Step 2: Setup Miniconda
+      # Step 3: Setup Python
+      # Nama otomatis tampil sebagai "Set up Python 3.12.7"
       # ----------------------------------------------------------
-      - name: Setup Miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10.13"
-          activate-environment: mlproject_env
-          auto-activate-base: false
 
       # ----------------------------------------------------------
-      # Step 3: Install MLflow dan dependencies
+      # Step 4: Check Env
+      # ----------------------------------------------------------
+      - name: Check Env
+        run: |
+          python --version
+          pip --version
+          echo "Environment check selesai."
+
+      # ----------------------------------------------------------
+      # Step 5: Install dependencies
+      # Hanya install MLflow dulu (untuk menjalankan mlflow run)
       # ----------------------------------------------------------
       - name: Install dependencies
-        shell: bash -el {0}
         run: |
           pip install --upgrade pip
-          pip install mlflow==2.20.2 pandas numpy scikit-learn matplotlib seaborn
+          pip install mlflow==2.20.2
 
-# ----------------------------------------------------------
-      # Step 4: Jalankan MLflow Project (training)
       # ----------------------------------------------------------
-      - name: Run MLflow Project
-        shell: bash -el {0}
+      # Step 6: Run mlflow project
+      # ----------------------------------------------------------
+      - name: Run mlflow project
         run: |
           mlflow run MLProject/ --env-manager=local -P n_estimators=100 -P max_depth=None -P min_samples_split=2 -P test_size=0.2 -P random_state=42
 
       # ----------------------------------------------------------
-      # Step 5: Simpan artefak (mlruns) ke GitHub
+      # Step 7: Get latest MLflow run_id
+      # Ambil run_id yang disimpan oleh modelling.py
       # ----------------------------------------------------------
-      - name: Commit artifacts to repository
-        shell: bash -el {0}
+      - name: Get latest MLflow run_id
+        run: |
+          RUN_ID=$(cat MLProject/run_id.txt)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Run ID yang digunakan: $RUN_ID"
+
+      # ----------------------------------------------------------
+      # Step 8: Install Python dependencies
+      # Install library tambahan untuk build Docker
+      # ----------------------------------------------------------
+      - name: Install Python dependencies
+        run: |
+          pip install pandas numpy scikit-learn matplotlib seaborn
+
+      # ----------------------------------------------------------
+      # Step 9: Upload to GitHub
+      # Simpan artefak mlruns dan run_id ke repository
+      # ----------------------------------------------------------
+      - name: Upload to GitHub
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -80,31 +109,39 @@ jobs:
           git diff --staged --quiet || git commit -m "ci: update mlruns artifacts [skip ci]"
           git push
 
-# ----------------------------------------------------------
-      # Step 6: Build Docker image dari model MLflow
       # ----------------------------------------------------------
-      - name: Build Docker image
-        shell: bash -el {0}
+      # Step 10: Build Docker Model
+      # Build Docker image dari artefak model MLflow
+      # ----------------------------------------------------------
+      - name: Build Docker Model
         run: |
-          RUN_ID=$(cat MLProject/run_id.txt)
-          echo "Building Docker image dari Run ID: $RUN_ID"
-          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" --env-manager local
+          mlflow models build-docker --model-uri "runs:/${{ env.RUN_ID }}/model" --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" --env-manager local
 
       # ----------------------------------------------------------
-      # Step 7: Login ke Docker Hub
+      # Step 11: Log in to Docker Hub
+      # Nama otomatis tampil sebagai "Log in to Docker Hub"
       # ----------------------------------------------------------
-      - name: Login to Docker Hub
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # ----------------------------------------------------------
-      # Step 8: Push Docker image ke Docker Hub
+      # Step 12: Tag Docker Image
       # ----------------------------------------------------------
-      - name: Push Docker image to Docker Hub
-        shell: bash -el {0}
+      - name: Tag Docker Image
+        run: |
+          docker tag \
+            "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest" \
+            "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest"
+          echo "Image berhasil di-tag."
+
+      # ----------------------------------------------------------
+      # Step 13: Push Docker Image
+      # ----------------------------------------------------------
+      - name: Push Docker Image
         run: |
           docker push "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest"
-          echo "Docker image berhasil dipush ke Docker Hub."
+          echo "Docker image berhasil dipush."
           echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier:latest"
