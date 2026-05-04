@@ -88,7 +88,7 @@ jobs:
       # ----------------------------------------------------------
       - name: Build Docker Model
         run: |
-          mlflow models build-docker --model-uri "runs:/${{ env.RUN_ID }}/model" --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" --env-manager local
+          mlflow models build-docker --model-uri "runs:/$RUN_ID/model" --name "${{ secrets.DOCKERHUB_USERNAME }}/dry-bean-classifier" --env-manager local
 
       # ----------------------------------------------------------
       # Step 11: Log in to Docker Hub
