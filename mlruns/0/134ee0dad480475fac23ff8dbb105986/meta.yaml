@@ -1,0 +1,15 @@
+artifact_uri: file:///home/runner/work/Workflow-CI/Workflow-CI/mlruns/0/134ee0dad480475fac23ff8dbb105986/artifacts
+end_time: 1777856404801
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 134ee0dad480475fac23ff8dbb105986
+run_name: efficient-pug-97
+run_uuid: 134ee0dad480475fac23ff8dbb105986
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1777856393733
+status: 3
+tags: []
+user_id: runner

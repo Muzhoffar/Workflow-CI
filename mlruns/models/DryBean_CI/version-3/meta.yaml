@@ -1,0 +1,14 @@
+aliases: []
+creation_timestamp: 1777856403591
+current_stage: None
+description: null
+last_updated_timestamp: 1777856403591
+name: DryBean_CI
+run_id: 134ee0dad480475fac23ff8dbb105986
+run_link: null
+source: file:///home/runner/work/Workflow-CI/Workflow-CI/mlruns/0/134ee0dad480475fac23ff8dbb105986/artifacts/model
+status: READY
+status_message: null
+storage_location: file:///home/runner/work/Workflow-CI/Workflow-CI/mlruns/0/134ee0dad480475fac23ff8dbb105986/artifacts/model
+user_id: null
+version: 3
