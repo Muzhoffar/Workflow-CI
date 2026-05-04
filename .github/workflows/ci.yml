@@ -64,12 +64,11 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 5: Install dependencies
-      # Hanya install MLflow dulu (untuk menjalankan mlflow run)
       # ----------------------------------------------------------
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install mlflow==2.20.2
+          pip install mlflow==2.20.2 pandas numpy scikit-learn matplotlib seaborn
 
       # ----------------------------------------------------------
       # Step 6: Run mlflow project
@@ -90,11 +89,11 @@ jobs:
 
       # ----------------------------------------------------------
       # Step 8: Install Python dependencies
-      # Install library tambahan untuk build Docker
       # ----------------------------------------------------------
       - name: Install Python dependencies
         run: |
-          pip install pandas numpy scikit-learn matplotlib seaborn
+          echo "Semua dependencies sudah terinstall di step sebelumnya."
+          python -c "import sklearn; import seaborn; import mlflow; print('Verifikasi library OK.')"
 
       # ----------------------------------------------------------
       # Step 9: Upload to GitHub
